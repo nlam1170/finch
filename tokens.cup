@@ -1,0 +1,463 @@
+import java_cup.runtime.*;
+import java.util.*;
+
+/*
+TERMINALS
+*/
+
+terminal String CLASS, ID;
+terminal MULTIPLY, DIVIDE, ADD, SUBTRACT;
+terminal AND, OR, TRUE, FALSE;
+terminal IF, ELSE, WHILE, RETURN;
+terminal READ, PRINTLN, PRINT;
+terminal INCREASE, DECREASE, NOT;
+terminal EQUALS, LT, GT, LTE, GTE, NOT_EQUALS;
+terminal SEMICOLON, COMMA, L_PAREN, R_PAREN, L_CURLY, R_CURLY, L_SQUARE, R_SQUARE, ASSIGN, COLON;
+terminal FINAL;
+terminal INT, FLOAT, CHAR, VOID, BOOL;
+terminal String CHARL, STRL, INTL, FLOATL;
+terminal UPLUS, UMINUS;
+terminal Q_MARK;
+
+/*
+NONTERMINALS
+*/
+
+non terminal Program program;
+non terminal MemberDecl memberdecls;
+
+non terminal ArrayList<FieldDecl> fielddecls;
+non terminal ArrayList<MethodDecl> methoddecls;
+non terminal FieldDecl fielddecl;
+non terminal MethodDecl methoddecl;
+
+non terminal Expression optionExp;
+non terminal Boolean optionSemi;
+
+non terminal ArrayList<ArgDecl> argdecllist;
+non terminal ArrayList<ArgDecl> argdecls;
+non terminal ArgDecl argdecl;
+
+non terminal ArrayList<Statement> stmts;
+non terminal Statement stmt;
+non terminal Statement ifLast;
+
+non terminal ArrayList<Expression> args;
+non terminal ArrayList<Expression> printlist;
+non terminal ArrayList<Expression> printlinelist;
+non terminal Expression exp;
+
+non terminal Name name;
+non terminal ArrayList<Name> readlist;
+
+non terminal String type;
+
+
+
+
+/*
+PRECEDENCE
+*/
+
+precedence left ELSE;
+precedence left ASSIGN;
+precedence left Q_MARK;
+precedence left OR;
+precedence left AND;
+precedence left NOT_EQUALS, EQUALS;
+precedence left GT, GTE, LT, LTE;
+precedence left ADD, SUBTRACT;
+precedence left MULTIPLY, DIVIDE;
+precedence left NOT, UPLUS, UMINUS;
+
+/*
+DEFINITIONS
+*/
+
+start with program;
+
+program ::= CLASS ID:id L_CURLY memberdecls:ms R_CURLY
+    {:
+        RESULT = new Program(id, ms);
+    :};
+
+
+methoddecls ::= methoddecl:m methoddecls:ms
+    {:
+        ms.add(0, m);
+        RESULT = ms;
+    :}
+    |
+    {:
+        RESULT = new ArrayList<MethodDecl>();
+    :};
+
+
+memberdecls ::= fielddecl:f memberdecls:ms 
+    {:
+        RESULT = new MemberDecl(f, ms);
+    :}
+    | methoddecls:ms
+    {:
+        RESULT = new MemberDecl(new ArrayList<FieldDecl>(), ms);
+    :};
+
+fielddecl ::= FINAL type:t ID:id optionExp:oe SEMICOLON
+    {:
+        RESULT = new FieldDecl(true, t, id, oe);
+    :}
+    | type:t ID:id optionExp:oe SEMICOLON
+    {:
+        RESULT = new FieldDecl(false, t, id, oe);
+    :}
+    | type:t ID:id L_SQUARE INTL:length R_SQUARE SEMICOLON
+    {:
+        RESULT = new FieldDecl(t, id, Integer.parseInt(length));
+    :};
+
+
+fielddecls ::= fielddecl:f fielddecls:fs
+    {:
+        fs.add(0, f);
+        RESULT = fs;
+    :}
+    | 
+    {:
+        RESULT = new ArrayList<FieldDecl>(); 
+    :};
+
+
+optionSemi ::= SEMICOLON
+    {:
+        RESULT = true;
+    :}
+    |
+    {:
+        RESULT = false;
+    :};
+
+
+optionExp ::= ASSIGN exp:e
+    {:
+        RESULT = e;
+    :}
+    |
+    {:
+        RESULT = null;
+    :};
+
+
+methoddecl ::= type:t ID:id L_PAREN argdecls:as R_PAREN L_CURLY fielddecls:fs stmts:stms R_CURLY optionSemi:os
+    {:
+        RESULT = new MethodDecl(t, id, os, as, fs, stms);
+    :}
+    | VOID ID:id L_PAREN argdecls:as R_PAREN L_CURLY fielddecls:fs stmts:stms R_CURLY optionSemi:os
+    {:
+        RESULT = new MethodDecl("void", id, os, as, fs, stms);
+    :};
+
+
+type ::= INT
+    {:
+        RESULT = "int";
+    :}
+    | FLOAT
+    {:
+        RESULT = "float";
+    :}
+    | BOOL
+    {:
+        RESULT = "bool";
+    :}
+    | CHAR
+    {:
+        RESULT = "char";
+    :};
+
+
+argdecl ::= type:t ID:id
+    {:
+        RESULT = new ArgDecl(t, id, false);
+    :}
+    | type:t ID:id R_SQUARE
+    {:
+        RESULT = new ArgDecl(t, id, true);
+    :};
+
+
+argdecllist ::= argdecl:a COMMA argdecllist:al
+    {:
+        al.add(0, a);
+        RESULT = al;
+    :}
+    | argdecl:a
+    {:
+        ArrayList<ArgDecl> ad = new ArrayList<ArgDecl>();
+        ad.add(a);
+        RESULT = ad;
+    :};
+
+
+argdecls ::= argdecllist:al
+    {:
+        RESULT = al;
+    :}
+    |
+    {:
+        RESULT = new ArrayList<ArgDecl>();
+    :};
+
+
+stmts ::= stmt:s stmts:ss
+    {:
+        ss.add(0, s);
+        RESULT = ss;
+    :}
+    | 
+    {:
+        RESULT = new ArrayList<Statement>();
+    :};
+
+
+stmt::= IF L_PAREN exp:e R_PAREN stmt:s ifLast:il 
+    {:
+        RESULT = new Statement(0, false, false, "", null, "", e, s, il, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+    :}
+    | WHILE L_PAREN exp:e R_PAREN stmt:s
+    {:
+        RESULT = new Statement(3, false, false, "", null, "", e, s, null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+    :}
+    | name:n ASSIGN exp:e SEMICOLON
+    {:
+        RESULT = new Statement(4, false, false, "", n, "", e, null, null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+    :}
+    | READ L_PAREN readlist:r R_PAREN SEMICOLON
+    {:
+        RESULT = new Statement(5, false, false, "read", null, "", null, null, null , new ArrayList<>() , new ArrayList<>(), new ArrayList<>(), r);
+    :}
+    | PRINT L_PAREN printlist:p R_PAREN SEMICOLON
+    {:
+        RESULT = new Statement(6, false, false, "print", null, "", null, null, null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), p);
+    :}
+    | PRINTLN L_PAREN printlinelist:p R_PAREN SEMICOLON
+    {:
+        RESULT = new Statement(7, false, false, "print", null, "", null, null, null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), p);
+    :}
+    | ID:id L_PAREN R_PAREN SEMICOLON
+    {:
+        RESULT = new Statement(10, false, false, id, null, "", null, null, null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+    :}
+    | ID:id L_PAREN args:a R_PAREN SEMICOLON
+    {:
+        RESULT = new Statement(1, false, false, id, null, "", null, null, null, new ArrayList<>(), new ArrayList<>(), a, new ArrayList<>());
+    :}
+    | RETURN SEMICOLON
+    {:
+        RESULT = new Statement(11, false, false, null, null, "", null, null, null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+    :}
+    | RETURN exp:e SEMICOLON
+    {:
+        RESULT = new Statement(9, false, false, null, null, "", e, null, null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+    :}
+    | name:n INCREASE SEMICOLON
+    {:
+        RESULT = new Statement(8, false, false, null, n, "++", null, null, null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+    :}
+    | name:n DECREASE SEMICOLON
+    {:
+        RESULT = new Statement(8, false, false, null, n, "--", null, null, null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+    :}
+    | L_CURLY fielddecls:fs stmts:ss R_CURLY optionSemi:os
+    {:
+        RESULT = new Statement(2, false, os, null, null, "", null, null, null, fs, ss, new ArrayList<>(), new ArrayList<>());
+    :};
+
+
+ifLast ::= ELSE stmt:st
+    {:
+        RESULT = st;
+    :}
+    |
+    {:
+        RESULT = null;
+    :};
+
+
+name ::= ID:id 
+    {:
+        RESULT = new Name(id, null);
+    :}
+    | ID:id L_SQUARE exp:e R_SQUARE
+    {:
+       RESULT = new Name(id, e);  
+    :};
+
+
+args ::= exp:e COMMA args:a
+    {:
+        a.add(0, e);
+        RESULT = a;
+    :}
+    | exp:e
+    {:
+        ArrayList<Expression> l = new ArrayList<Expression>();
+        l.add(e);
+        RESULT = l;
+    :};
+
+
+readlist ::= name:n COMMA readlist:r
+    {:
+        r.add(0, n);
+        RESULT = r;
+    :}
+    | name:n
+    {:
+        ArrayList<Name> l = new ArrayList<>();
+        l.add(n);
+        RESULT = l;
+    :};
+
+
+printlist ::= exp:e COMMA printlist:p
+    {:
+        p.add(0, e);
+        RESULT = p;
+    :}
+    | exp:e
+    {:
+        ArrayList<Expression> l = new ArrayList<>();
+        l.add(e);
+        RESULT = l;
+    :};
+
+
+printlinelist ::= printlist:p
+    {:
+        RESULT = p;
+    :}
+    |
+    {:
+        RESULT = new ArrayList<Expression>();
+    :};
+
+
+exp ::= name:n
+    {:
+        RESULT = new Expression(3, "", "", 0, 0, n, false, null, null, "", null, null);
+    :}
+    | ID:id L_PAREN R_PAREN
+    {:
+        RESULT = new Expression(11, id, "", 0, 0, null, false, null, null, "", null, null);
+    :}
+    | ID:id L_PAREN args:a R_PAREN
+    {:
+        RESULT = new Expression(10, id, "", 0, 0, null, false, null, null, "", null, a);
+    :}
+    | INTL:i
+    {:
+        RESULT = new Expression(1, "", "", 0, Integer.parseInt(i), null, false, null, null, "", null, null);
+    :}
+    | CHARL:c
+    {:
+        RESULT = new Expression(12, "", c, 0, 0, null, false, null, null, "", null, null);
+    :}
+    | STRL:s
+    {:
+        RESULT = new Expression(0, "", s, 0, 0, null, false, null, null, "", null, null);
+    :}
+    | FLOATL:f
+    {:
+        RESULT = new Expression(2, "", "", 0, Float.parseFloat(f), null, false, null, null, "", null, null);
+    :}
+    | TRUE
+    {:
+        RESULT = new Expression(4, "", "", 0, 0, null, true, null, null, "", null, null);
+    :}
+    | FALSE
+    {:
+        RESULT = new Expression(4, "", "", 0, 0, null, false, null, null, "", null, null);
+    :}
+    | L_PAREN exp:e R_PAREN
+    {:
+        RESULT = new Expression(5, "", "", 0, 0, null, false, new Expression[]{e}, null, "", null, null);
+    :}
+    | NOT exp:e
+    {:
+        RESULT = new Expression(6, "", "", 0, 0, null, false, new Expression[]{e}, new BinaryOp("~"), "", null, null);
+    :}
+    | SUBTRACT exp:e
+    {:
+        RESULT = new Expression(6, "", "", 0, 0, null, false, new Expression[]{e}, new BinaryOp("-"), "", null, null);
+    :} %prec UMINUS
+    | ADD exp:e 
+    {:
+        RESULT = new Expression(6, "", "", 0, 0, null, false, new Expression[]{e}, new BinaryOp("+"), "", null, null);
+    :} %prec UPLUS
+    | L_PAREN type:t R_PAREN exp:e
+    {:
+        RESULT = new Expression(7, null, null, 0, 0, null, false, new Expression[]{e}, null, "", t, null);    
+    :}
+    | exp:e1 ADD exp:e2
+    {:
+        RESULT = new Expression(8, "", "", 0, 0, null, false, new Expression[]{e1, e2}, new BinaryOp("+"), "", null, null);
+    :}
+    | exp:e1 SUBTRACT exp:e2
+    {:
+        RESULT = new Expression(8, "", "", 0, 0, null, false, new Expression[]{e1, e2}, new BinaryOp("-"), "", null, null);
+    :}
+    | exp:e1 MULTIPLY exp:e2
+    {:
+        RESULT = new Expression(8, "", "", 0, 0, null, false, new Expression[]{e1, e2}, new BinaryOp("*"), "", null, null);
+    :}
+    | exp:e1 DIVIDE exp:e2
+    {:
+        RESULT = new Expression(8, "", "", 0, 0, null, false, new Expression[]{e1, e2}, new BinaryOp("/"), "", null, null);
+    :}
+    | exp:e1 GT exp:e2
+    {:
+        RESULT = new Expression(8, "", "", 0, 0, null, false, new Expression[]{e1, e2}, new BinaryOp(">"), "", null, null);
+    :}
+    | exp:e1 LT exp:e2
+    {:
+        RESULT = new Expression(8, "", "", 0, 0, null, false, new Expression[]{e1, e2}, new BinaryOp("<"), "", null, null);
+    :}
+    | exp:e1 GTE exp:e2
+    {:
+        RESULT = new Expression(8, "", "", 0, 0, null, false, new Expression[]{e1, e2}, new BinaryOp(">="), "", null, null);
+    :}
+    | exp:e1 LTE exp:e2
+    {:
+        RESULT = new Expression(8, "", "", 0, 0, null, false, new Expression[]{e1, e2}, new BinaryOp("<="), "", null, null);
+    :}
+    | exp:e1 EQUALS exp:e2
+    {:
+        RESULT = new Expression(8, "", "", 0, 0, null, false, new Expression[]{e1, e2}, new BinaryOp("=="), "", null, null);
+    :}
+    | exp:e1 NOT_EQUALS exp:e2
+    {:
+        RESULT = new Expression(8, "", "", 0, 0, null, false, new Expression[]{e1, e2}, new BinaryOp("<>"), "", null, null);
+    :}
+    | exp:e1 OR exp:e2
+    {:
+        RESULT = new Expression(8, "", "", 0, 0, null, false, new Expression[]{e1, e2}, new BinaryOp("||"), "", null, null);
+    :}
+    | exp:e1 AND exp:e2
+    {:
+        RESULT = new Expression(8, "", "", 0, 0, null, false, new Expression[]{e1, e2}, new BinaryOp("&&"), "", null, null);
+    :}
+    | L_PAREN exp:e1 Q_MARK exp:e2 COLON exp:e3 R_PAREN
+    {:
+        new Expression(9, "", "", 0, 0, null, false, new Expression[]{e1, e2, e3}, null, "", null, null);
+    :};
+
+
+
+
+
+
+
+
+
+
+
