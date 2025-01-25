@@ -1,3 +1,6 @@
+#About
+This is a small interpreter I wrote for a custom scripting language my compilers class. This is itended for learning purposes only.  
+
 # How To Run
 
 run `make clean` to reset everything
